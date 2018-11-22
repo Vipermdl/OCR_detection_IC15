@@ -1,0 +1,8 @@
+SEED:
+
+seed:1228		epoch:836		pre:68.46
+seed:2500		epoch:500		pre:52.58
+
+
+seed:1228		epoch:800+		pre:80.6	funetuning   bs:16
+
