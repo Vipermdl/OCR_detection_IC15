@@ -337,21 +337,23 @@ class Toolbox:
                     cv2.polylines(im[:, :, ::-1], [box.astype(np.int32).reshape((-1, 1, 2))], True,
                                   color=(255, 255, 0), thickness=1)
 
-        gt = output_txt_dir / im_fn.with_name('res_{}'.format(im_fn.stem)).with_suffix('.txt').name
+        if output_txt_dir is not None:
+            gt = output_txt_dir / im_fn.with_name('res_{}'.format(im_fn.stem)).with_suffix('.txt').name
 
-        with gt.open(mode='a', encoding='utf-8') as f:
+            with gt.open(mode='a', encoding='utf-8') as f:
+                if boxes is not None:
+                    for box in boxes:
+                        box = np.array(box, dtype=np.int32).reshape([1, 8])[0]
+                        box = [str(x) for x in box]
+                        bboxstr = ','.join(box) + '\n'
+                        f.write(bboxstr)
+        if labels is not None:
             if boxes is not None:
-                for box in boxes:
-                    box = np.array(box, dtype=np.int32).reshape([1, 8])[0]
-                    box = [str(x) for x in box]
-                    bboxstr = ','.join(box) + '\n'
-                    f.write(bboxstr)
-        f.close()
-
-        if boxes is not None:
-            res = Toolbox.comp_gt_and_output(boxes, labels, 0.5)
+                res = Toolbox.comp_gt_and_output(boxes, labels, 0.5)
+            else:
+                res = (0, len(labels), 0)
         else:
-            res = (0, len(labels), 0)
+            res = (0,0,0)
         if output_dir:
             img_path = output_dir / im_fn.name
             cv2.imwrite(img_path.as_posix(), im[:, :, ::-1])
