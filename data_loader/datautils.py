@@ -64,7 +64,7 @@ def polygon_area(poly):
     return np.sum(edge) / 2.
 
 
-def check_and_validate_polys(polys, tags, texts, xxx_todo_changeme):
+def check_and_validate_polys(polys,texts, tags, xxx_todo_changeme):
     '''
     check so that the text poly is in the same direction,
     and also filter some invalid polygons
