@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from base import BaseTrainer
 from utils.bbox import Toolbox
-from utils.visualize import Visualizer
+# from utils.visualize import Visualizer
 class Trainer(BaseTrainer):
     """
     Trainer class
@@ -11,9 +11,9 @@ class Trainer(BaseTrainer):
         Inherited from BaseTrainer.
         self.optimizer is by default handled by BaseTrainer based on config.
     """
-    def __init__(self, model, loss, metrics, resume, config,
+    def __init__(self, model, loss, metrics, resume,finetune, config,
                  data_loader, toolbox: Toolbox, valid_data_loader=None, train_logger=None):
-        super(Trainer, self).__init__(model, loss, metrics, resume, config, train_logger)
+        super(Trainer, self).__init__(model, loss, metrics, resume, finetune,config, train_logger)
         self.config = config
         self.batch_size = data_loader.batch_size
         self.data_loader = data_loader
@@ -21,7 +21,7 @@ class Trainer(BaseTrainer):
         self.valid = True if self.valid_data_loader is not None else False
         self.log_step = int(np.sqrt(self.batch_size))
         self.toolbox = toolbox
-        self.visdom = Visualizer(env='FOTS')
+        # self.visdom = Visualizer(env='FOTS')
 
     def _to_tensor(self, *tensors):
         t = []
@@ -82,7 +82,7 @@ class Trainer(BaseTrainer):
                     len(self.data_loader) * self.data_loader.batch_size,
                     100.0 * batch_idx / len(self.data_loader),
                     loss.item()))
-        self.visdom.plot('train_loss', total_loss / len(self.data_loader))
+        # self.visdom.plot('train_loss', total_loss / len(self.data_loader))
         log = {
             'loss': total_loss / len(self.data_loader),
             'metrics': (total_metrics / len(self.data_loader)).tolist()
@@ -122,7 +122,7 @@ class Trainer(BaseTrainer):
                 output = (pred_score_map, pred_geo_map, pred_recog_map)
                 target = (score_map, geo_map, recog_map)
                 #total_val_metrics += self._eval_metrics(output, target, training_mask) #TODO: should add AP metric
-        self.visdom.plot('val_loss', total_val_loss / len(self.valid_data_loader))
+        # self.visdom.plot('val_loss', total_val_loss / len(self.valid_data_loader))
         return {
             'val_loss': total_val_loss / len(self.valid_data_loader),
             'val_metrics': (total_val_metrics / len(self.valid_data_loader)).tolist()
