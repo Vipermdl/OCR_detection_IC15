@@ -6,7 +6,7 @@ import pathlib
 import random
 from data_loader import SynthTextDataLoaderFactory
 from data_loader import OCRDataLoaderFactory
-from data_loader.dataset import ICDAR
+from data_loader.dataset import ICDAR, MyDataset
 from logger import Logger
 from model.loss import *
 from model.model import *
@@ -31,6 +31,12 @@ def main(config, resume):
         data_loader = SynthTextDataLoaderFactory(config)
         train = data_loader.train()
         val = data_loader.val()
+    elif config['data_loader']['dataset'] == 'mydataset':
+        image_root = pathlib.Path(config['data_loader']['image_dir'])
+        annotation_dir = pathlib.Path(config['data_loader']['annotation_dir'])
+        data_loader = OCRDataLoaderFactory(config,MyDataset(image_root,annotation_dir))
+        train = data_loader.train()
+        val = data_loader.val()
 
     os.environ['CUDA_VISIBLE_DEVICES'] = ','.join([str(i) for i in config['gpus']])
     model = eval(config['arch'])(config['model'])
@@ -39,7 +45,10 @@ def main(config, resume):
     loss = eval(config['loss'])(config['model'])
     metrics = [eval(metric) for metric in config['metrics']]
 
+    finetune_model = config['finetune']
+
     trainer = Trainer(model, loss, metrics,
+                      finetune=finetune_model,
                       resume=resume,
                       config=config,
                       data_loader=train,
