@@ -66,7 +66,7 @@ class BaseTrainer:
         if resume:
             self._resume_checkpoint(resume)
 
-        if finetune:
+        if finetune and not resume:
             self._restore_checkpoint(finetune)
 
 
