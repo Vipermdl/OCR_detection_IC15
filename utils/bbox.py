@@ -1,17 +1,17 @@
-import cv2
-import time
 import math
-import os
+import time
+
+import cv2
 import numpy as np
+import os
+import torch
 
 # import locality_aware_nms as nms_locality
 from . import lanms
-import torch
 
 
 class Toolbox:
 
-    
     def polygon_area(poly):
         '''
         compute area of a polygon
@@ -26,7 +26,6 @@ class Toolbox:
         ]
         return np.sum(edge) / 2.
 
-    
     def restore_rectangle_rbox(origin, geometry):
         d = geometry[:, :4]
         angle = geometry[:, 4]
@@ -43,15 +42,15 @@ class Toolbox:
             p = p.transpose((1, 0)).reshape((-1, 5, 2))  # N*5*2
 
             rotate_matrix_x = np.array([np.cos(angle_0), np.sin(angle_0)]).transpose((1, 0))
-            rotate_matrix_x = np.repeat(rotate_matrix_x, 5, axis = 1).reshape(-1, 2, 5).transpose((0, 2, 1))  # N*5*2
+            rotate_matrix_x = np.repeat(rotate_matrix_x, 5, axis=1).reshape(-1, 2, 5).transpose((0, 2, 1))  # N*5*2
 
             rotate_matrix_y = np.array([-np.sin(angle_0), np.cos(angle_0)]).transpose((1, 0))
-            rotate_matrix_y = np.repeat(rotate_matrix_y, 5, axis = 1).reshape(-1, 2, 5).transpose((0, 2, 1))
+            rotate_matrix_y = np.repeat(rotate_matrix_y, 5, axis=1).reshape(-1, 2, 5).transpose((0, 2, 1))
 
-            p_rotate_x = np.sum(rotate_matrix_x * p, axis = 2)[:, :, np.newaxis]  # N*5*1
-            p_rotate_y = np.sum(rotate_matrix_y * p, axis = 2)[:, :, np.newaxis]  # N*5*1
+            p_rotate_x = np.sum(rotate_matrix_x * p, axis=2)[:, :, np.newaxis]  # N*5*1
+            p_rotate_y = np.sum(rotate_matrix_y * p, axis=2)[:, :, np.newaxis]  # N*5*1
 
-            p_rotate = np.concatenate([p_rotate_x, p_rotate_y], axis = 2)  # N*5*2
+            p_rotate = np.concatenate([p_rotate_x, p_rotate_y], axis=2)  # N*5*2
 
             p3_in_origin = origin_0 - p_rotate[:, 4, :]
             new_p0 = p_rotate[:, 0, :] + p3_in_origin  # N*2
@@ -60,7 +59,7 @@ class Toolbox:
             new_p3 = p_rotate[:, 3, :] + p3_in_origin
 
             new_p_0 = np.concatenate([new_p0[:, np.newaxis, :], new_p1[:, np.newaxis, :],
-                                      new_p2[:, np.newaxis, :], new_p3[:, np.newaxis, :]], axis = 1)  # N*4*2
+                                      new_p2[:, np.newaxis, :], new_p3[:, np.newaxis, :]], axis=1)  # N*4*2
         else:
             new_p_0 = np.zeros((0, 4, 2))
         # for angle < 0
@@ -76,15 +75,15 @@ class Toolbox:
             p = p.transpose((1, 0)).reshape((-1, 5, 2))  # N*5*2
 
             rotate_matrix_x = np.array([np.cos(-angle_1), -np.sin(-angle_1)]).transpose((1, 0))
-            rotate_matrix_x = np.repeat(rotate_matrix_x, 5, axis = 1).reshape(-1, 2, 5).transpose((0, 2, 1))  # N*5*2
+            rotate_matrix_x = np.repeat(rotate_matrix_x, 5, axis=1).reshape(-1, 2, 5).transpose((0, 2, 1))  # N*5*2
 
             rotate_matrix_y = np.array([np.sin(-angle_1), np.cos(-angle_1)]).transpose((1, 0))
-            rotate_matrix_y = np.repeat(rotate_matrix_y, 5, axis = 1).reshape(-1, 2, 5).transpose((0, 2, 1))
+            rotate_matrix_y = np.repeat(rotate_matrix_y, 5, axis=1).reshape(-1, 2, 5).transpose((0, 2, 1))
 
-            p_rotate_x = np.sum(rotate_matrix_x * p, axis = 2)[:, :, np.newaxis]  # N*5*1
-            p_rotate_y = np.sum(rotate_matrix_y * p, axis = 2)[:, :, np.newaxis]  # N*5*1
+            p_rotate_x = np.sum(rotate_matrix_x * p, axis=2)[:, :, np.newaxis]  # N*5*1
+            p_rotate_y = np.sum(rotate_matrix_y * p, axis=2)[:, :, np.newaxis]  # N*5*1
 
-            p_rotate = np.concatenate([p_rotate_x, p_rotate_y], axis = 2)  # N*5*2
+            p_rotate = np.concatenate([p_rotate_x, p_rotate_y], axis=2)  # N*5*2
 
             p3_in_origin = origin_1 - p_rotate[:, 4, :]
             new_p0 = p_rotate[:, 0, :] + p3_in_origin  # N*2
@@ -93,13 +92,11 @@ class Toolbox:
             new_p3 = p_rotate[:, 3, :] + p3_in_origin
 
             new_p_1 = np.concatenate([new_p0[:, np.newaxis, :], new_p1[:, np.newaxis, :],
-                                      new_p2[:, np.newaxis, :], new_p3[:, np.newaxis, :]], axis = 1)  # N*4*2
+                                      new_p2[:, np.newaxis, :], new_p3[:, np.newaxis, :]], axis=1)  # N*4*2
         else:
             new_p_1 = np.zeros((0, 4, 2))
         return np.concatenate([new_p_0, new_p_1])
 
-
-    
     def rotate(box_List, image):
         # xuan zhuan tu pian
 
@@ -132,8 +129,7 @@ class Toolbox:
         image_new = cv2.warpAffine(image, M, (w, h))
         return image_new
 
-    
-    def resize_image(im, max_side_len = 2400):
+    def resize_image(im, max_side_len=2400):
         '''
         resize image to a size multiple of 32 which is required by the network
         :param im: the resized image
@@ -162,8 +158,7 @@ class Toolbox:
 
         return im, (ratio_h, ratio_w)
 
-    
-    def detect(score_map, geo_map, score_map_thresh = 0.5, box_thresh = 0.1, nms_thres = 0.2, timer = None):
+    def detect(score_map, geo_map, score_map_thresh=0.5, box_thresh=0.1, nms_thres=0.2, timer=None):
         '''1e-5
         restore text boxes from score map and geo map
         :param score_map:
@@ -183,9 +178,10 @@ class Toolbox:
         xy_text = xy_text[np.argsort(xy_text[:, 0])]
         # restore
         start = time.time()
-        text_box_restored = Toolbox.restore_rectangle_rbox(xy_text[:, ::-1] * 4, geo_map[xy_text[:, 0], xy_text[:, 1], :])  # N*4*2
+        text_box_restored = Toolbox.restore_rectangle_rbox(xy_text[:, ::-1] * 4,
+                                                           geo_map[xy_text[:, 0], xy_text[:, 1], :])  # N*4*2
         # print('{} text boxes before nms'.format(text_box_restored.shape[0]))
-        boxes = np.zeros((text_box_restored.shape[0], 9), dtype = np.float32)
+        boxes = np.zeros((text_box_restored.shape[0], 9), dtype=np.float32)
         boxes[:, :8] = text_box_restored.reshape((-1, 8))
         boxes[:, 8] = score_map[xy_text[:, 0], xy_text[:, 1]]
         timer['restore'] = time.time() - start
@@ -199,22 +195,20 @@ class Toolbox:
 
         # here we filter some low score boxes by the average score map, this is different from the orginal paper
         for i, box in enumerate(boxes):
-            mask = np.zeros_like(score_map, dtype = np.uint8)
+            mask = np.zeros_like(score_map, dtype=np.uint8)
             cv2.fillPoly(mask, box[:8].reshape((-1, 4, 2)).astype(np.int32) // 4, 1)
             boxes[i, 8] = cv2.mean(score_map, mask)[0]
         boxes = boxes[boxes[:, 8] > box_thresh]
         return boxes, timer
 
-    
     def sort_poly(p):
-        min_axis = np.argmin(np.sum(p, axis = 1))
+        min_axis = np.argmin(np.sum(p, axis=1))
         p = p[[min_axis, (min_axis + 1) % 4, (min_axis + 2) % 4, (min_axis + 3) % 4]]
         if abs(p[0, 0] - p[1, 0]) > abs(p[0, 1] - p[1, 1]):
             return p
         else:
             return p[[0, 3, 2, 1]]
 
-    
     def change_box(box_List):
         n = len(box_List)
         for i in range(n):
@@ -234,7 +228,6 @@ class Toolbox:
             box_List[i] = box
         return box_List
 
-    
     def save_box(box_List, image, img_path):
         n = len(box_List)
         box_final = []
@@ -250,10 +243,10 @@ class Toolbox:
             x2 = min(int(x2_0 + 0.25 * (x2_0 - x1_0)), image.shape[1] - 1)
             image_new = image[y1:y2, x1:x2]
 
-            # # Í¼Ïñ´¦Àí
+            # # Í¼ï¿½ï¿½ï¿½ï¿½
             gray_2 = image_new[:, :, 0]
-            gradX = cv2.Sobel(gray_2, ddepth = cv2.CV_32F, dx = 1, dy = 0, ksize = -1)
-            gradY = cv2.Sobel(gray_2, ddepth = cv2.CV_32F, dx = 0, dy = 1, ksize = -1)
+            gradX = cv2.Sobel(gray_2, ddepth=cv2.CV_32F, dx=1, dy=0, ksize=-1)
+            gradY = cv2.Sobel(gray_2, ddepth=cv2.CV_32F, dx=0, dy=1, ksize=-1)
             blurred = cv2.blur(gradX, (2, 2))
             (_, thresh) = cv2.threshold(blurred, 160, 255, cv2.THRESH_BINARY)
             # closed = cv2.erode(thresh, None, iterations = 1)
@@ -290,7 +283,6 @@ class Toolbox:
             box_List[i] = box
         return box_List
 
-    
     def predict(im_fn, model, with_img, output_dir, with_gpu, labels, output_txt_dir):
         im = cv2.imread(im_fn.as_posix())[:, :, ::-1]
         im_resized, (ratio_h, ratio_w) = Toolbox.resize_image(im)
@@ -328,27 +320,26 @@ class Toolbox:
                     continue
                 poly = np.array([[box[0, 0], box[0, 1]], [box[1, 0], box[1, 1]], [box[2, 0], box[2, 1]],
                                  [box[3, 0], box[3, 1]]])
-                
+
                 p_area = Toolbox.polygon_area(poly)
                 if p_area > 0:
                     poly = poly[(0, 3, 2, 1), :]
-                    
+
                 polys.append(poly)
-                
+
                 if with_img:
                     cv2.polylines(im[:, :, ::-1], [box.astype(np.int32).reshape((-1, 1, 2))], True,
                                   color=(255, 255, 0), thickness=1)
 
-
         gt = output_txt_dir / im_fn.with_name('res_{}'.format(im_fn.stem)).with_suffix('.txt').name
-        
+
         with gt.open(mode='a', encoding='utf-8') as f:
             if boxes is not None:
                 for box in boxes:
                     box = np.array(box, dtype=np.int32).reshape([1, 8])[0]
                     box = [str(x) for x in box]
-                    bboxstr = ','.join(box)+'\n'
-                    f.write(bboxstr)       
+                    bboxstr = ','.join(box) + '\n'
+                    f.write(bboxstr)
         f.close()
 
         if boxes is not None:
@@ -360,7 +351,6 @@ class Toolbox:
             cv2.imwrite(img_path.as_posix(), im[:, :, ::-1])
         return polys, im, res
 
-   
     def get_images_for_test(test_data_path):
         '''
         find image files in test data path
@@ -383,7 +373,7 @@ class Toolbox:
         """
         box1 = np.array(box1, dtype=np.int32).reshape([1, 4, 2])
         box2 = np.array(box2, dtype=np.int32).reshape([1, 4, 2])
-        
+
         box1_max = box1.max(axis=1)
         box2_max = box2.max(axis=1)
         w_max = max(box1_max[0][0], box2_max[0][0])
