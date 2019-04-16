@@ -6,6 +6,7 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+
 class MyDataset(Dataset):
 
     def __init__(self, img_root, txt_root):
@@ -13,24 +14,23 @@ class MyDataset(Dataset):
         self.txt_root = txt_root
 
     def __getitem__(self, index):
-        img, score_map, geo_map, training_mask = image_label(self.txt_root,
-                                                             self.image_list, self.img_name, index,
-                                                             input_size = 512,
-                                                             random_scale = np.array([0.5, 1, 2.0, 3.0]),
-                                                             background_ratio = 3. / 8)
-        return img, score_map, geo_map, training_mask
+        img, score_map, geo_map, training_mask, text = image_label(self.txt_root,
+                                                                   self.image_list, self.img_name, index,
+                                                                   input_size=512,
+                                                                   random_scale=np.array([0.5, 1, 2.0, 3.0]),
+                                                                   background_ratio=3. / 8)
+        return img, score_map, geo_map, training_mask, text
 
     def __len__(self):
         return len(self.image_list)
 
 
 class ICDAR(Dataset):
-
     structure = {
         '2015': {
             'training': {
                 'images': 'ch4_training_images',
-                'gt':'ch4_training_localization_transcription_gt',
+                'gt': 'ch4_training_localization_transcription_gt',
                 'voc_per_image': 'ch4_training_vocabularies_per_image',
                 'voc_all': 'ch4_training_vocabulary.txt'
             },
@@ -94,7 +94,7 @@ class ICDAR(Dataset):
 
     def __getitem__(self, index):
         imageName = self.images[index]
-        bboxes = self.bboxs[index] # num_words * 8
+        bboxes = self.bboxs[index]  # num_words * 8
         transcripts = self.transcripts[index]
 
         try:
@@ -105,8 +105,8 @@ class ICDAR(Dataset):
     def __len__(self):
         return len(self.images)
 
-    def __transform(self, gt, input_size = 512, random_scale = np.array([0.5, 1, 2.0, 3.0]),
-                        background_ratio = 3. / 8):
+    def __transform(self, gt, input_size=512, random_scale=np.array([0.5, 1, 2.0, 3.0]),
+                    background_ratio=3. / 8):
         '''
 
         :param gt: iamge path (str), wordBBoxes (2 * 4 * num_words), transcripts (multiline)
@@ -116,42 +116,42 @@ class ICDAR(Dataset):
 
         imagePath, wordBBoxes, transcripts = gt
         im = cv2.imread(imagePath.as_posix())
-        #wordBBoxes = np.expand_dims(wordBBoxes, axis = 2) if (wordBBoxes.ndim == 2) else wordBBoxes
-        #_, _, numOfWords = wordBBoxes.shape
+        # wordBBoxes = np.expand_dims(wordBBoxes, axis = 2) if (wordBBoxes.ndim == 2) else wordBBoxes
+        # _, _, numOfWords = wordBBoxes.shape
         numOfWords = len(wordBBoxes)
         text_polys = wordBBoxes  # num_words * 8
         transcripts = [word for line in transcripts for word in line.split()]
-        text_tags = [True if(tag == '*' or tag == '###') else False for tag in transcripts] # ignore '###'
+        text_tags = [True if (tag == '*' or tag == '###') else False for tag in transcripts]  # ignore '###'
 
         if numOfWords == len(transcripts):
             h, w, _ = im.shape
-            text_polys, text_tags = check_and_validate_polys(text_polys, text_tags, (h, w))
+            text_polys, transcripts, text_tags = check_and_validate_polys(text_polys, transcripts, text_tags, (h, w))
 
             rd_scale = np.random.choice(random_scale)
-            im = cv2.resize(im, dsize = None, fx = rd_scale, fy = rd_scale)
+            im = cv2.resize(im, dsize=None, fx=rd_scale, fy=rd_scale)
             text_polys *= rd_scale
 
             # print rd_scale
             # random crop a area from image
             if np.random.rand() < background_ratio:
                 # crop background
-                im, text_polys, text_tags = crop_area(im, text_polys, text_tags, crop_background = True)
+                im, text_polys, text_tags = crop_area(im, text_polys, text_tags, crop_background=True)
                 if text_polys.shape[0] > 0:
                     # cannot find background
                     raise TypeError('cannot find background')
                 # pad and resize image
                 new_h, new_w, _ = im.shape
                 max_h_w_i = np.max([new_h, new_w, input_size])
-                im_padded = np.zeros((max_h_w_i, max_h_w_i, 3), dtype = np.uint8)
+                im_padded = np.zeros((max_h_w_i, max_h_w_i, 3), dtype=np.uint8)
                 im_padded[:new_h, :new_w, :] = im.copy()
-                im = cv2.resize(im_padded, dsize = (input_size, input_size))
-                score_map = np.zeros((input_size, input_size), dtype = np.uint8)
+                im = cv2.resize(im_padded, dsize=(input_size, input_size))
+                score_map = np.zeros((input_size, input_size), dtype=np.uint8)
                 geo_map_channels = 5
                 #                     geo_map_channels = 5 if FLAGS.geometry == 'RBOX' else 8
-                geo_map = np.zeros((input_size, input_size, geo_map_channels), dtype = np.float32)
-                training_mask = np.ones((input_size, input_size), dtype = np.uint8)
+                geo_map = np.zeros((input_size, input_size, geo_map_channels), dtype=np.float32)
+                training_mask = np.ones((input_size, input_size), dtype=np.uint8)
             else:
-                im, text_polys, text_tags = crop_area(im, text_polys, text_tags, crop_background = False)
+                im, text_polys, text_tags = crop_area(im, text_polys, text_tags, crop_background=False)
                 if text_polys.shape[0] == 0:
                     raise TypeError('cannot find background')
                 h, w, _ = im.shape
@@ -159,14 +159,14 @@ class ICDAR(Dataset):
                 # pad the image to the training input size or the longer side of image
                 new_h, new_w, _ = im.shape
                 max_h_w_i = np.max([new_h, new_w, input_size])
-                im_padded = np.zeros((max_h_w_i, max_h_w_i, 3), dtype = np.uint8)
+                im_padded = np.zeros((max_h_w_i, max_h_w_i, 3), dtype=np.uint8)
                 im_padded[:new_h, :new_w, :] = im.copy()
                 im = im_padded
                 # resize the image to input size
                 new_h, new_w, _ = im.shape
                 resize_h = input_size
                 resize_w = input_size
-                im = cv2.resize(im, dsize = (resize_w, resize_h))
+                im = cv2.resize(im, dsize=(resize_w, resize_h))
                 resize_ratio_3_x = resize_w / float(new_w)
                 resize_ratio_3_y = resize_h / float(new_h)
                 text_polys[:, :, 0] *= resize_ratio_3_x
@@ -183,6 +183,7 @@ class ICDAR(Dataset):
             return images, score_maps, geo_maps, training_masks, transcripts
         else:
             raise TypeError('Number of bboxes is inconsist with number of transcripts ')
+
 
 class SynthTextDataset(Dataset):
 
@@ -212,7 +213,7 @@ class SynthTextDataset(Dataset):
             transcript: corresponding transcripts of bounded words
         """
         imageName = self.imageNames[index]
-        wordBBoxes = self.wordBBoxes[index] # 2 * 4 * num_words
+        wordBBoxes = self.wordBBoxes[index]  # 2 * 4 * num_words
         transcripts = self.transcripts[index]
 
         try:
@@ -223,8 +224,8 @@ class SynthTextDataset(Dataset):
     def __len__(self):
         return len(self.imageNames)
 
-    def __transform(self, gt, input_size = 512, random_scale = np.array([0.5, 1, 2.0, 3.0]),
-                        background_ratio = 3. / 8):
+    def __transform(self, gt, input_size=512, random_scale=np.array([0.5, 1, 2.0, 3.0]),
+                    background_ratio=3. / 8):
         '''
 
         :param gt: iamge path (str), wordBBoxes (2 * 4 * num_words), transcripts (multiline)
@@ -234,42 +235,42 @@ class SynthTextDataset(Dataset):
 
         imagePath, wordBBoxes, transcripts = gt
         im = cv2.imread((self.dataRoot / imagePath).as_posix())
-        wordBBoxes = np.expand_dims(wordBBoxes, axis = 2) if (wordBBoxes.ndim == 2) else wordBBoxes
+        wordBBoxes = np.expand_dims(wordBBoxes, axis=2) if (wordBBoxes.ndim == 2) else wordBBoxes
         _, _, numOfWords = wordBBoxes.shape
-        text_polys = wordBBoxes.reshape([8, numOfWords], order = 'F').T  # num_words * 8
+        text_polys = wordBBoxes.reshape([8, numOfWords], order='F').T  # num_words * 8
         text_polys = text_polys.reshape(numOfWords, 4, 2)  # num_of_words * 4 * 2
         transcripts = [word for line in transcripts for word in line.split()]
-        text_tags = np.zeros(numOfWords) # 1 to ignore, 0 to hold
+        text_tags = np.zeros(numOfWords)  # 1 to ignore, 0 to hold
 
         if numOfWords == len(transcripts):
             h, w, _ = im.shape
-            text_polys, text_tags = check_and_validate_polys(text_polys, text_tags, (h, w))
+            text_polys, transcripts, text_tags = check_and_validate_polys(text_polys, transcripts, text_tags, (h, w))
 
             rd_scale = np.random.choice(random_scale)
-            im = cv2.resize(im, dsize = None, fx = rd_scale, fy = rd_scale)
+            im = cv2.resize(im, dsize=None, fx=rd_scale, fy=rd_scale)
             text_polys *= rd_scale
 
             # print rd_scale
             # random crop a area from image
             if np.random.rand() < background_ratio:
                 # crop background
-                im, text_polys, text_tags = crop_area(im, text_polys, text_tags, crop_background = True)
+                im, text_polys, text_tags = crop_area(im, text_polys, text_tags, crop_background=True)
                 # if text_polys.shape[0] > 0:
                 #     # cannot find background
                 #     pass
                 # pad and resize image
                 new_h, new_w, _ = im.shape
                 max_h_w_i = np.max([new_h, new_w, input_size])
-                im_padded = np.zeros((max_h_w_i, max_h_w_i, 3), dtype = np.uint8)
+                im_padded = np.zeros((max_h_w_i, max_h_w_i, 3), dtype=np.uint8)
                 im_padded[:new_h, :new_w, :] = im.copy()
-                im = cv2.resize(im_padded, dsize = (input_size, input_size))
-                score_map = np.zeros((input_size, input_size), dtype = np.uint8)
+                im = cv2.resize(im_padded, dsize=(input_size, input_size))
+                score_map = np.zeros((input_size, input_size), dtype=np.uint8)
                 geo_map_channels = 5
                 #                     geo_map_channels = 5 if FLAGS.geometry == 'RBOX' else 8
-                geo_map = np.zeros((input_size, input_size, geo_map_channels), dtype = np.float32)
-                training_mask = np.ones((input_size, input_size), dtype = np.uint8)
+                geo_map = np.zeros((input_size, input_size, geo_map_channels), dtype=np.float32)
+                training_mask = np.ones((input_size, input_size), dtype=np.uint8)
             else:
-                im, text_polys, text_tags = crop_area(im, text_polys, text_tags, crop_background = False)
+                im, text_polys, text_tags = crop_area(im, text_polys, text_tags, crop_background=False)
                 # if text_polys.shape[0] == 0:
                 #     pass
                 h, w, _ = im.shape
@@ -277,14 +278,14 @@ class SynthTextDataset(Dataset):
                 # pad the image to the training input size or the longer side of image
                 new_h, new_w, _ = im.shape
                 max_h_w_i = np.max([new_h, new_w, input_size])
-                im_padded = np.zeros((max_h_w_i, max_h_w_i, 3), dtype = np.uint8)
+                im_padded = np.zeros((max_h_w_i, max_h_w_i, 3), dtype=np.uint8)
                 im_padded[:new_h, :new_w, :] = im.copy()
                 im = im_padded
                 # resize the image to input size
                 new_h, new_w, _ = im.shape
                 resize_h = input_size
                 resize_w = input_size
-                im = cv2.resize(im, dsize = (resize_w, resize_h))
+                im = cv2.resize(im, dsize=(resize_w, resize_h))
                 resize_ratio_3_x = resize_w / float(new_w)
                 resize_ratio_3_y = resize_h / float(new_h)
                 text_polys[:, :, 0] *= resize_ratio_3_x
@@ -300,6 +301,6 @@ class SynthTextDataset(Dataset):
 
             return images, score_maps, geo_maps, training_masks, transcripts
 
-            #return images, score_maps, geo_maps, training_masks
+            # return images, score_maps, geo_maps, training_masks
         else:
             raise TypeError('Number of bboxes is inconsist with number of transcripts ')
