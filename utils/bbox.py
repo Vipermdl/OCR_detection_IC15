@@ -12,6 +12,7 @@ from . import lanms
 
 class Toolbox:
 
+    @staticmethod
     def polygon_area(poly):
         '''
         compute area of a polygon
@@ -26,6 +27,7 @@ class Toolbox:
         ]
         return np.sum(edge) / 2.
 
+    @staticmethod
     def restore_rectangle_rbox(origin, geometry):
         d = geometry[:, :4]
         angle = geometry[:, 4]
@@ -97,6 +99,7 @@ class Toolbox:
             new_p_1 = np.zeros((0, 4, 2))
         return np.concatenate([new_p_0, new_p_1])
 
+    @staticmethod
     def rotate(box_List, image):
         # xuan zhuan tu pian
 
@@ -129,6 +132,7 @@ class Toolbox:
         image_new = cv2.warpAffine(image, M, (w, h))
         return image_new
 
+    @staticmethod
     def resize_image(im, max_side_len=2400):
         '''
         resize image to a size multiple of 32 which is required by the network
@@ -158,6 +162,7 @@ class Toolbox:
 
         return im, (ratio_h, ratio_w)
 
+    @staticmethod
     def detect(score_map, geo_map, score_map_thresh=0.5, box_thresh=0.1, nms_thres=0.2, timer=None):
         '''1e-5
         restore text boxes from score map and geo map
@@ -201,6 +206,7 @@ class Toolbox:
         boxes = boxes[boxes[:, 8] > box_thresh]
         return boxes, timer
 
+    @staticmethod
     def sort_poly(p):
         min_axis = np.argmin(np.sum(p, axis=1))
         p = p[[min_axis, (min_axis + 1) % 4, (min_axis + 2) % 4, (min_axis + 3) % 4]]
@@ -209,6 +215,7 @@ class Toolbox:
         else:
             return p[[0, 3, 2, 1]]
 
+    @staticmethod
     def change_box(box_List):
         n = len(box_List)
         for i in range(n):
@@ -228,6 +235,7 @@ class Toolbox:
             box_List[i] = box
         return box_List
 
+    @staticmethod
     def save_box(box_List, image, img_path):
         n = len(box_List)
         box_final = []
@@ -243,7 +251,6 @@ class Toolbox:
             x2 = min(int(x2_0 + 0.25 * (x2_0 - x1_0)), image.shape[1] - 1)
             image_new = image[y1:y2, x1:x2]
 
-            # # ͼ����
             gray_2 = image_new[:, :, 0]
             gradX = cv2.Sobel(gray_2, ddepth=cv2.CV_32F, dx=1, dy=0, ksize=-1)
             gradY = cv2.Sobel(gray_2, ddepth=cv2.CV_32F, dx=0, dy=1, ksize=-1)
@@ -283,6 +290,7 @@ class Toolbox:
             box_List[i] = box
         return box_List
 
+    @staticmethod
     def predict(im_fn, model, with_img, output_dir, with_gpu, labels, output_txt_dir):
         im = cv2.imread(im_fn.as_posix())[:, :, ::-1]
         im_resized, (ratio_h, ratio_w) = Toolbox.resize_image(im)
@@ -351,6 +359,7 @@ class Toolbox:
             cv2.imwrite(img_path.as_posix(), im[:, :, ::-1])
         return polys, im, res
 
+    @staticmethod
     def get_images_for_test(test_data_path):
         '''
         find image files in test data path
@@ -367,6 +376,7 @@ class Toolbox:
         # print('Find {} images'.format(len(files)))
         return files
 
+    @staticmethod
     def cal_IOU(box1, box2):
         """
         box1, box2: list or numpy array of size 4*2 or 8, h_index first
@@ -393,6 +403,7 @@ class Toolbox:
         intersction = box1_area + box2_area - union
         return intersction / union
 
+    @staticmethod
     def comp_gt_and_output(my_labels, gt_labels, threshold):
         """
         return: [true_pos, false_pos, false_neg]
