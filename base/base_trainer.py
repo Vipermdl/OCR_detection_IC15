@@ -11,7 +11,7 @@ class BaseTrainer:
     """
     Base class for all trainers
     """
-    def __init__(self, model, loss, metrics, resume, config, train_logger=None):
+    def __init__(self, model, loss, metrics, resume,finetune, config, train_logger=None):
         self.config = config
         self.logger = logging.getLogger(self.__class__.__name__)
         self.model = model
@@ -65,6 +65,10 @@ class BaseTrainer:
                   indent=4, sort_keys=False)
         if resume:
             self._resume_checkpoint(resume)
+
+        if finetune:
+            self._restore_checkpoint(finetune)
+
 
     def train(self):
         """
@@ -174,3 +178,19 @@ class BaseTrainer:
         self.train_logger = checkpoint['logger']
         self.config = checkpoint['config']
         self.logger.info("Checkpoint '{}' (epoch {}) loaded".format(resume_path, self.start_epoch))
+
+    def _restore_checkpoint(self, checkpoint_path):
+        """
+        just load parameter of pretrained model
+
+        :param checkpoint_path: Checkpoint path to be resumed
+        """
+        self.logger.info("Loading checkpoint: {} ...".format(checkpoint_path))
+        checkpoint = torch.load(checkpoint_path)
+        self.model.load_state_dict(checkpoint['state_dict'],False)
+        self.optimizer.load_state_dict(checkpoint['optimizer'])
+        if self.with_cuda:
+            for state in self.optimizer.state.values():
+                for k, v in state.items():
+                    if isinstance(v, torch.Tensor):
+                        state[k] = v.cuda(self.device)
