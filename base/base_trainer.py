@@ -170,7 +170,7 @@ class BaseTrainer:
             for state in self.optimizer.state.values():
                 for k, v in state.items():
                     if isinstance(v, torch.Tensor):
-                        state[k] = v.cuda(self.gpus)
+                        state[k] = v.cuda(self.device)
         self.train_logger = checkpoint['logger']
         self.config = checkpoint['config']
         self.logger.info("Checkpoint '{}' (epoch {}) loaded".format(resume_path, self.start_epoch))
