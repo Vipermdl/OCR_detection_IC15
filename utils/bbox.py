@@ -101,10 +101,8 @@ class Toolbox:
 
     @staticmethod
     def rotate(box_List, image):
-        # xuan zhuan tu pian
-
         n = len(box_List)
-        c = 0;
+        c = 0
         angle = 0
         for i in range(n):
             box = box_List[i]
