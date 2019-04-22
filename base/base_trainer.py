@@ -187,7 +187,7 @@ class BaseTrainer:
         """
         self.logger.info("Loading checkpoint: {} ...".format(checkpoint_path))
         checkpoint = torch.load(checkpoint_path)
-        self.model.load_state_dict(checkpoint['state_dict'],False)
+        self.model.load_state_dict(checkpoint['state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         if self.with_cuda:
             for state in self.optimizer.state.values():
