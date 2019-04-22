@@ -39,7 +39,7 @@ def main(config, resume):
         val = data_loader.val()
 
     os.environ['CUDA_VISIBLE_DEVICES'] = ','.join([str(i) for i in config['gpus']])
-    model = eval(config['arch'])(config['model'])
+    model = eval(config['arch'])(config)
     model.summary()
 
     loss = eval(config['loss'])(config['model'])
