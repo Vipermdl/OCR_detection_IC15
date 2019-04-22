@@ -14,12 +14,15 @@ class MyDataset(Dataset):
         self.txt_root = txt_root
 
     def __getitem__(self, index):
-        img, score_map, geo_map, training_mask, text = image_label(self.txt_root,
+
+        img_path,img, score_map, geo_map, training_mask, text,bboxes = image_label(self.txt_root,
                                                                    self.image_list, self.img_name, index,
                                                                    input_size=512,
                                                                    random_scale=np.array([0.5, 1, 2.0, 3.0]),
                                                                    background_ratio=3. / 8)
-        return img, score_map, geo_map, training_mask, text
+        if len(bboxes) == 0:
+            return self.__getitem__(index)
+        return img_path,img, score_map, geo_map, training_mask, text,bboxes
 
     def __len__(self):
         return len(self.image_list)
