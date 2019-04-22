@@ -4,21 +4,23 @@ import torch.nn.init as init
 import torch
 import math
 
+from base import BaseModel
+
 SPEEDUP_SCALE = 512
 
 
-class SharedConv(nn.Module):
+class SharedConv(BaseModel):
     '''
     sharded convolutional layers
     '''
 
-    def __init__(self, bbNet: nn.Module):
-        super(SharedConv, self).__init__()
+    def __init__(self, bbNet: nn.Module, config):
+        super(SharedConv, self).__init__(config)
         self.backbone = bbNet
-#        self.backbone.eval()
-#        # backbone as feature extractor
-#        for param in self.backbone.parameters():
-#            param.requires_grad = False
+        #        self.backbone.eval()
+        #        # backbone as feature extractor
+        #        for param in self.backbone.parameters():
+        #            param.requires_grad = False
 
         # Feature-merging branch
         # self.toplayer = nn.Conv2d(2048, 256, kernel_size = 1, stride = 1, padding = 0)  # Reduce channels
@@ -29,26 +31,26 @@ class SharedConv(nn.Module):
         self.mergeLayers2 = HLayer(128 + 512, 64)
         self.mergeLayers3 = HLayer(64 + 256, 32)
 
-        self.mergeLayers4 = nn.Conv2d(32, 32, kernel_size = 3, padding = 1)
+        self.mergeLayers4 = nn.Conv2d(32, 32, kernel_size=3, padding=1)
         self.bn5 = nn.BatchNorm2d(32, momentum=0.003)
 
         # Output Layer
         self.textScale = 512
-        self.scoreMap = nn.Conv2d(32, 1, kernel_size = 1)
-        self.geoMap = nn.Conv2d(32, 4, kernel_size = 1)
-        self.angleMap = nn.Conv2d(32, 1, kernel_size = 1)
-        
+        # self.scoreMap = nn.Conv2d(32, 1, kernel_size = 1)
+        # self.geoMap = nn.Conv2d(32, 4, kernel_size = 1)
+        # self.angleMap = nn.Conv2d(32, 1, kernel_size = 1)
+        #
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 m.weight.data.normal_().fmod_(2).mul_(0.01).add_(0)
-                #init.xavier_uniform_(m.weight.data)
+                # init.xavier_uniform_(m.weight.data)
             elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
             elif isinstance(m, nn.Linear):
                 init.xavier_uniform_(m.weight.data)
                 m.bias.data.zero_()
-        
+
     def forward(self, input):
 
         input = self.__mean_image_subtraction(input)
@@ -74,29 +76,30 @@ class SharedConv(nn.Module):
 
         # i = 4
         h[3] = self.mergeLayers3(g[2], f[3])
-        #g[3] = self.__unpool(h[3])
+        # g[3] = self.__unpool(h[3])
 
         # final stage
         final = self.mergeLayers4(h[3])
         final = self.bn5(final)
         final = F.relu(final)
-
-        score = self.scoreMap(final)
-        score = torch.sigmoid(score)
-
-        geoMap = self.geoMap(final)
-        geoMap = torch.sigmoid(geoMap) * 512
-        angleMap = self.angleMap(final)
-        angleMap = (torch.sigmoid(angleMap) - 0.5) * math.pi / 2
-        geometry = torch.cat([geoMap, angleMap], dim = 1)
-
-        return score, geometry
+        #
+        # score = self.scoreMap(final)
+        # score = torch.sigmoid(score)
+        #
+        # geoMap = self.geoMap(final)
+        # geoMap = torch.sigmoid(geoMap) * 512
+        # angleMap = self.angleMap(final)
+        # angleMap = (torch.sigmoid(angleMap) - 0.5) * math.pi / 2
+        # geometry = torch.cat([geoMap, angleMap], dim = 1)
+        #
+        # return score, geometry
+        return final
 
     def __foward_backbone(self, input):
         conv2 = None
         conv3 = None
         conv4 = None
-        output = None # n * 7 * 7 * 2048
+        output = None  # n * 7 * 7 * 2048
 
         for name, layer in self.backbone.named_children():
             input = layer(input)
@@ -114,9 +117,9 @@ class SharedConv(nn.Module):
 
     def __unpool(self, input):
         _, _, H, W = input.shape
-        return F.interpolate(input, mode = 'bilinear', scale_factor = 2, align_corners = True)
+        return F.interpolate(input, mode='bilinear', scale_factor=2, align_corners=True)
 
-    def __mean_image_subtraction(self, images, means = [123.68, 116.78, 103.94]):
+    def __mean_image_subtraction(self, images, means=[123.68, 116.78, 103.94]):
         '''
         image normalization
         :param images: bs * w * h * channel
@@ -148,14 +151,14 @@ class HLayer(nn.Module):
         """
         super(HLayer, self).__init__()
 
-        self.conv2dOne = nn.Conv2d(inputChannels, outputChannels, kernel_size = 1)
+        self.conv2dOne = nn.Conv2d(inputChannels, outputChannels, kernel_size=1)
         self.bnOne = nn.BatchNorm2d(outputChannels, momentum=0.003)
 
-        self.conv2dTwo = nn.Conv2d(outputChannels, outputChannels, kernel_size = 3, padding = 1)
+        self.conv2dTwo = nn.Conv2d(outputChannels, outputChannels, kernel_size=3, padding=1)
         self.bnTwo = nn.BatchNorm2d(outputChannels, momentum=0.003)
 
     def forward(self, inputPrevG, inputF):
-        input = torch.cat([inputPrevG, inputF], dim = 1)
+        input = torch.cat([inputPrevG, inputF], dim=1)
         output = self.conv2dOne(input)
         output = self.bnOne(output)
         output = F.relu(output)
