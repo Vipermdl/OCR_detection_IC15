@@ -4,7 +4,9 @@ import Polygon as plg
 import numpy as np
 import re
 from typing import Dict, Tuple, List
-from . import rrc_evaluation_funcs
+
+from utils.eval_tools.icdar2015 import rrc_evaluation_funcs
+
 
 def evaluation_imports():
     """
