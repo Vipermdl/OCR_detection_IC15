@@ -8,7 +8,7 @@ import pathlib
 from shapely.geometry import Polygon
 
 
-def get_images(root):
+def get_images(root,limit=None):
     '''
     get images's path and name
     '''
@@ -16,9 +16,9 @@ def get_images(root):
     for ext in ['jpg', 'png', 'jpeg', 'JPG']:
         files.extend(gb.glob(os.path.join(root, '*.{}'.format(ext))))
     name = []
-    for i in range(len(files)):
+    for i in range(len(files) if limit is None else limit):
         name.append(files[i].split('/')[-1])
-    return files, name
+    return files[:len(name)], name
 
 
 def load_annoataion(p):
@@ -64,7 +64,7 @@ def polygon_area(poly):
     return np.sum(edge) / 2.
 
 
-def check_and_validate_polys(polys,texts, tags, xxx_todo_changeme):
+def check_and_validate_polys(polys, texts, tags, xxx_todo_changeme):
     '''
     check so that the text poly is in the same direction,
     and also filter some invalid polygons
@@ -646,9 +646,9 @@ def image_label(txt_root, image_list, img_name, index,
         training_masks = training_mask[::4, ::4, np.newaxis].astype(np.float32)
 
     except Exception as e:
-        images, score_maps, geo_maps, training_masks, texts = None, None, None, None, None
+        im_name, images, score_maps, geo_maps, training_masks, texts, text_polys = None, None, None, None, None, None, None
 
-    return images, score_maps, geo_maps, training_masks, texts
+    return im_name, images, score_maps, geo_maps, training_masks, texts, text_polys
 
 
 # def collate_fn(batch):
@@ -681,13 +681,13 @@ def image_label(txt_root, image_list, img_name, index,
 
 
 def collate_fn(batch):
-    img, score_map, geo_map, training_mask, transcript = zip(*batch)
+    imagePaths, img, score_map, geo_map, training_mask, transcripts, boxes = zip(*batch)
     bs = len(score_map)
     images = []
     score_maps = []
     geo_maps = []
     training_masks = []
-    transcripts = []
+
     for i in range(bs):
         if img[i] is not None:
             a = torch.from_numpy(img[i])
@@ -707,9 +707,23 @@ def collate_fn(batch):
     score_maps = torch.stack(score_maps, 0)
     geo_maps = torch.stack(geo_maps, 0)
     training_masks = torch.stack(training_masks, 0)
-    # TODO: need to implement the transformation for transcript as we need to compute ctc loss
 
-    return images, score_maps, geo_maps, training_masks, transcripts
+    mapping = []
+    texts = []
+    bboxs = []
+    for index, gt in enumerate(zip(transcripts, boxes)):
+        for t, b in zip(gt[0], gt[1]):
+            mapping.append(index)
+            texts.append(t)
+            bboxs.append(b.flatten())
+
+    mapping = np.array(mapping)
+    texts = np.array(texts)
+    bboxs = np.stack(bboxs, axis=0)
+    bboxs = np.concatenate([bboxs, np.ones((len(bboxs), 1))], axis=1).astype(np.float32)
+    imagePaths = [p.name if isinstance(p, pathlib.Path) else str(p) for p in imagePaths]
+
+    return imagePaths, images, score_maps, geo_maps, training_masks, texts, bboxs, mapping
 
 ## img = bs * 512 * 512 *3
 ## score_map = bs* 128 * 128 * 1
