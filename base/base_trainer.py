@@ -40,7 +40,7 @@ class BaseTrainer:
             device = 'cpu'
 
         self.device = torch.device(device)
-        self.model = self.model.to(self.device)
+        self.model.to(self.device)
 
         self.logger.debug('Model is initialized.')
         self._log_memory_useage()
