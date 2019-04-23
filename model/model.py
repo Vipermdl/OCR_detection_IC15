@@ -10,11 +10,12 @@ from .modules.crnn import CRNN
 import pretrainedmodels as pm
 import torch.optim as optim
 import numpy as np
+import utils.common_str as common_str
 
 
 class FOTSModel:
 
-    def __init__(self, config, keys='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.'):
+    def __init__(self, config, keys=common_str.custom_1):
         self.mode = config['model']['mode']
 
         bbNet = pm.__dict__['resnet50'](pretrained='imagenet')  # resnet50 in paper

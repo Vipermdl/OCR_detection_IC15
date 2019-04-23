@@ -3,6 +3,7 @@ import torch
 
 from base import BaseTrainer
 from utils.bbox import Toolbox
+from utils.common_str import custom_1
 from utils.util import strLabelConverter
 
 
@@ -18,7 +19,7 @@ class Trainer(BaseTrainer):
     def __init__(self, model, loss, metrics,
                  finetune, resume, config,
                  data_loader, toolbox: Toolbox, valid_data_loader=None, train_logger=None,
-                 keys='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.'):
+                 keys=custom_1):
         super(Trainer, self).__init__(model, loss, metrics, finetune, resume, config, train_logger)
         self.config = config
         self.batch_size = data_loader.batch_size
