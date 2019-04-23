@@ -110,12 +110,10 @@ class ICDAR(Dataset):
 
     def __transform(self, gt, input_size=512, random_scale=np.array([0.5, 1, 2.0, 3.0]),
                     background_ratio=3. / 8):
-        '''
-
-        :param gt: iamge path (str), wordBBoxes (2 * 4 * num_words), transcripts (multiline)
-
+        """
+        :param gt: image path (str), wordBBoxes (2 * 4 * num_words), transcripts (multiline)
         :return:
-        '''
+        """
 
         imagePath, wordBBoxes, transcripts = gt
         im = cv2.imread(imagePath.as_posix())
