@@ -7,6 +7,8 @@ import os
 import torch
 
 # import locality_aware_nms as nms_locality
+from PIL import ImageDraw, Image, ImageFont
+
 from . import lanms
 
 
@@ -289,7 +291,27 @@ class Toolbox:
         return box_List
 
     @staticmethod
-    def predict(im_fn, model, with_img, output_dir, with_gpu, labels, output_txt_dir):
+    def draw_annotation(im, polygons, texts, ttf_font):
+        """
+        在图片上添加有box和文字
+        :param im:  待添加的图片
+        :param polygons:     待添加的多边形区域
+        :param texts:    待添加的文字
+        :param ttf_font:    字体
+        :return:    添加完成的图片
+        """
+        to_return = im.copy()
+        draw = ImageDraw.Draw(to_return)
+        if polygons is not None:
+            for m_polygon, m_text in zip(polygons, texts):
+                draw.polygon(xy=m_polygon.flatten().tolist(), outline="green")
+                draw.text(m_polygon[2].tolist(), np.unicode(m_text), fill=(255, 0, 255), font=ttf_font)
+        else:
+            draw.text((15, 90), np.unicode("Not Detected!"), fill=(255, 255, 0), font=ttf_font)
+        return to_return
+
+    @staticmethod
+    def predict(im_fn, model, with_img, output_dir, with_gpu, labels, output_txt_dir, label_converter):
         im = cv2.imread(im_fn.as_posix())[:, :, ::-1]
         im_resized, (ratio_h, ratio_w) = Toolbox.resize_image(im)
         im_resized = im_resized.astype(np.float32)
@@ -302,50 +324,54 @@ class Toolbox:
 
         timer = {'net': 0, 'restore': 0, 'nms': 0}
         start = time.time()
-        score, geometry, _ = model(im_resized)
+        score_map, geo_map, (preds, lengths), boxes, pred_mapping, indices = model.forward(im_resized)
         timer['net'] = time.time() - start
 
-        score = score.permute(0, 2, 3, 1)
-        geometry = geometry.permute(0, 2, 3, 1)
-        score = score.data.cpu().numpy()
-        geometry = geometry.data.cpu().numpy()
-
-        boxes, timer = Toolbox.detect(score_map=score, geo_map=geometry, timer=timer)
-
-        if boxes is not None:
+        polys = []
+        texts = []
+        if boxes is not None and len(boxes) > 0:
             boxes = boxes[:, :8].reshape((-1, 4, 2))
             boxes[:, :, 0] /= ratio_w
             boxes[:, :, 1] /= ratio_h
+            _, preds = preds.max(2)
+            pred_transcripts = []
+            for i in range(lengths.numel()):
+                m_text_len = lengths[i]
+                m_text_code = preds[:m_text_len, i]
+                t = label_converter.decode(m_text_code, m_text_len)
+                pred_transcripts.append(t)
+            pred_transcripts = np.array(pred_transcripts)
+            boxes = boxes[indices]
 
-        polys = []
-        if boxes is not None:
-            for box in boxes:
-                box = Toolbox.sort_poly(box.astype(np.int32))
-                if np.linalg.norm(box[0] - box[1]) < 5 or np.linalg.norm(box[3] - box[0]) < 5:
+            for m_box, m_pred_transcript in zip(boxes, pred_transcripts):
+                m_box = Toolbox.sort_poly(m_box.astype(np.int32))
+                if np.linalg.norm(m_box[0] - m_box[1]) < 5 or np.linalg.norm(m_box[3] - m_box[0]) < 5:
                     # print('wrong direction')
                     continue
-                poly = np.array([[box[0, 0], box[0, 1]], [box[1, 0], box[1, 1]], [box[2, 0], box[2, 1]],
-                                 [box[3, 0], box[3, 1]]])
+                poly = np.array([[m_box[0, 0], m_box[0, 1]], [m_box[1, 0], m_box[1, 1]], [m_box[2, 0], m_box[2, 1]],
+                                 [m_box[3, 0], m_box[3, 1]]])
 
                 p_area = Toolbox.polygon_area(poly)
                 if p_area > 0:
                     poly = poly[(0, 3, 2, 1), :]
 
                 polys.append(poly)
+                texts.append(m_pred_transcript)
 
-                if with_img:
-                    cv2.polylines(im[:, :, ::-1], [box.astype(np.int32).reshape((-1, 1, 2))], True,
-                                  color=(255, 255, 0), thickness=1)
+            if with_img:
+                font_file_path = os.path.join(os.path.dirname(__file__),"HanYiXiaoBoHuaYueYuan-Jian-2.ttf")
+                ttf_font = ImageFont.truetype(font_file_path, 20)
+                im = np.array(Toolbox.draw_annotation(Image.fromarray(im), polys, texts, ttf_font))
 
         if output_txt_dir is not None:
             gt = output_txt_dir / im_fn.with_name('res_{}'.format(im_fn.stem)).with_suffix('.txt').name
 
             with gt.open(mode='a', encoding='utf-8') as f:
                 if boxes is not None:
-                    for box in boxes:
-                        box = np.array(box, dtype=np.int32).reshape([1, 8])[0]
-                        box = [str(x) for x in box]
-                        bboxstr = ','.join(box) + '\n'
+                    for m_box in boxes:
+                        m_box = np.array(m_box, dtype=np.int32).reshape([1, 8])[0]
+                        m_box = [str(x) for x in m_box]
+                        bboxstr = ','.join(m_box) + '\n'
                         f.write(bboxstr)
         if labels is not None:
             if boxes is not None:
@@ -353,7 +379,7 @@ class Toolbox:
             else:
                 res = (0, len(labels), 0)
         else:
-            res = (0,0,0)
+            res = (0, 0, 0)
         if output_dir:
             img_path = output_dir / im_fn.name
             cv2.imwrite(img_path.as_posix(), im[:, :, ::-1])
