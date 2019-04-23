@@ -12,6 +12,8 @@ from tqdm import tqdm
 
 from model.model import FOTSModel
 from utils.bbox import Toolbox
+from utils.common_str import custom_1
+from utils.util import strLabelConverter
 
 logging.basicConfig(level=logging.DEBUG, format='')
 
@@ -24,15 +26,13 @@ def load_model(model_path, with_gpu):
     config = checkpoints['config']
     state_dict = checkpoints['state_dict']
 
-    model = FOTSModel(config['model'])
-
+    model = FOTSModel(config)
     model.load_state_dict(state_dict)
-
-    model = torch.nn.DataParallel(model)
+    model.parallelize()
 
     if with_gpu:
-        model = model.cuda()
-    model = model.eval()
+        model.to(torch.device("cuda:0"))
+    model.eval()
     return model
 
 
@@ -94,7 +94,8 @@ def main(args: argparse.Namespace):
     else:
         with torch.no_grad():
             for image_fn in tqdm(image_dir.glob('*.jpg')):
-                Toolbox.predict(image_fn, model, with_image, output_img_dir, with_gpu, None,None)
+                Toolbox.predict(image_fn, model, with_image, output_img_dir, with_gpu, None, None,
+                                strLabelConverter(custom_1))
 
 
 if __name__ == '__main__':
